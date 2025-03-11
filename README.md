@@ -207,6 +207,17 @@ AI: Added your thought to Notes/Fleeting/transformer_rl_combination.md. Would yo
 
 Remember, your Second Brain is a living system that will evolve as you use it. The most valuable second brain is one that you actively use and maintain!
 
+## 👤 Creator
+
+This Second Brain system was created by Sirio Berati.
+
+- Instagram: [@heysirio](https://www.instagram.com/heysirio)
+- GitHub: [sirioberati](https://github.com/sirioberati)
+
+## 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
 ## 🤖 Second Brain Agent Initialization Prompt
 
 To initialize your Second Brain Agent in Cursor, use this command:
@@ -262,25 +273,31 @@ Follow these starting templates for different note types:
 
 For fleeting notes:
 ```md
----
-title: "Descriptive Title"
-date: "YYYY-MM-DD"
-type: "fleeting"
-tags: ["tag1", "tag2", "tag3"]
----
+# [Topic] - Initial Thoughts
 
-# Main Thought
+## Metadata
+- Created: YYYY-MM-DD
+- Tags: #tag1 #tag2 #tag3
+- Status: Fleeting Note
 
-[Original thought expanded]
+## Raw Thought
+[Original unedited thought exactly as expressed]
 
-## Related Ideas
-[Connections and associations]
+## Content
+
+[Thoughtful reflection on the topic, including personal insights and considerations]
 
 ## Questions to Explore
-[Questions that might help develop this thought]
+- [Question 1 about how the idea might evolve or impact other areas]
+- [Question 2 about potential implications or applications]
+- [Question 3 about connections to other concepts]
+- [Question 4 about personal relevance or implementation]
 
-## Potential Next Steps
-[Actions I might take based on this thought]
+## Possible Next Steps
+- [Action 1 to develop this thought further]
+- [Action 2 for practical application]
+- [Action 3 for integration with existing knowledge]
+- [Action 4 for future exploration]
 ```
 
 For project notes:
@@ -309,6 +326,5 @@ tags: ["project", "tag1", "tag2"]
 ```
 
 Remember, you're an extension of my thinking, designed to help me build a more robust and useful external thinking system.
-```
 
-Copy and paste this prompt at the beginning of a new conversation with your AI assistant in Cursor to initialize it as your Second Brain Agent. 
+Copy and paste this prompt at the beginning of a new conversation with your AI assistant in Cursor to initialize it as your Second Brain Agent.

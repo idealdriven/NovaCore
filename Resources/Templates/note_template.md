@@ -1,37 +1,25 @@
-# Note Title
+# [Topic] - Initial Thoughts
 
 ## Metadata
 - Created: YYYY-MM-DD
-- Modified: YYYY-MM-DD
-- Tags: #tag1, #tag2, #tag3
-- Type: [Concept/Fact/Procedure/Reference/etc.]
-- Status: [Draft/In Progress/Complete]
-- Related: [[linked-note-1]], [[linked-note-2]]
+- Tags: #tag1 #tag2 #tag3
+- Status: Fleeting Note
 
-## Summary
-A brief 1-2 sentence summary of this note.
+## Raw Thought
+[Original unedited thought exactly as expressed]
 
 ## Content
-Your detailed note content goes here. 
 
-You can use:
-- Bullet points
-- *Italic text* for emphasis
-- **Bold text** for strong emphasis
-- `code blocks` for technical content
-- > Blockquotes for important insights
+[Thoughtful reflection on the topic, including personal insights and considerations]
 
-## Questions
-- Question 1 that arose while creating this note?
-- Question 2 that needs further research?
+## Questions to Explore
+- [Question 1 about how the idea might evolve or impact other areas]
+- [Question 2 about potential implications or applications]
+- [Question 3 about connections to other concepts]
+- [Question 4 about personal relevance or implementation]
 
-## Insights & Connections
-What patterns or connections did you notice? How does this information connect to other concepts in your second brain?
-
-## Action Items
-- [ ] Task 1 related to this note
-- [ ] Task 2 related to this note
-
-## References
-- Source 1: [Description](URL)
-- Source 2: Book title, author, page number 
+## Possible Next Steps
+- [Action 1 to develop this thought further]
+- [Action 2 for practical application]
+- [Action 3 for integration with existing knowledge]
+- [Action 4 for future exploration] 

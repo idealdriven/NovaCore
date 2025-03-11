@@ -4,6 +4,8 @@
   "description": "A local interface for interacting with your Second Brain",
   "main": "public/electron.js",
   "homepage": "./",
+  "author": "Sirio Berati",
+  "license": "MIT",
   "scripts": {
     "start": "react-scripts start",
     "build": "react-scripts build",

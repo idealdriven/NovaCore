@@ -54,3 +54,10 @@ This will create an installer in the `dist` directory.
 ## License
 
 MIT 
+
+## Creator
+
+This Second Brain UI was created by Sirio Berati.
+
+- Instagram: [@heysirio](https://www.instagram.com/heysirio)
+- GitHub: [sirioberati](https://github.com/sirioberati) 
