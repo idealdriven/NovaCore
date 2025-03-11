@@ -1,0 +1,52 @@
+LEARNING NOTE
+
+METADATA:
+Title: 
+Date Created: YYYY-MM-DD
+Date Modified: YYYY-MM-DD
+Source: [Book/Course/Video/Article/Experience]
+Source URL: 
+Difficulty: [Beginner/Intermediate/Advanced]
+Completeness: [Just Started/In Progress/Completed]
+Tags: #learning #tag2 #tag3
+Related: [topic1, topic2]
+
+SUMMARY:
+[1-3 sentence overview of what was learned]
+
+CORE CONCEPTS:
+- Concept 1: Brief explanation
+- Concept 2: Brief explanation
+- Concept 3: Brief explanation
+
+KEY POINTS:
+1. [First important point]
+2. [Second important point]
+3. [Third important point]
+
+EXAMPLES:
+Example 1: [Description of how concept applies in practice]
+Example 2: [Another practical application]
+
+QUESTIONS:
+- [Question that arose during learning]
+- [Areas that need further research]
+
+APPLICATIONS:
+- [How I can apply this knowledge]
+- [Potential projects using this knowledge]
+
+CONNECTIONS:
+- [How this connects to existing knowledge]
+- [Relationships to other concepts in your Second Brain]
+
+RESOURCES FOR FURTHER LEARNING:
+- [Resource 1]
+- [Resource 2]
+
+ACTION ITEMS:
+- [ ] [Task to implement or practice this knowledge]
+- [ ] [Follow-up learning task]
+
+NOTES:
+[Any additional thoughts, reactions, or reflections on this learning] 

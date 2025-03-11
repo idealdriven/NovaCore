@@ -1,0 +1,61 @@
+CREATION NOTE
+
+METADATA:
+Title: 
+Date Started: YYYY-MM-DD
+Date Modified: YYYY-MM-DD
+Date Completed: YYYY-MM-DD
+Type: [Writing/Design/Code/Art/Music/Other]
+Status: [Idea/In Progress/Draft/Review/Complete]
+Tags: #creating #tag2 #tag3
+Related: [related_creation1, related_note1]
+
+PROJECT OVERVIEW:
+[2-3 sentence description of what this creation is and its purpose]
+
+OBJECTIVES:
+- [Primary goal of this creation]
+- [Secondary objectives]
+
+INSPIRATION:
+- [Source of inspiration 1]
+- [Source of inspiration 2]
+- [Reference materials]
+
+KEY ELEMENTS:
+1. [First key component or feature]
+2. [Second key component or feature]
+3. [Third key component or feature]
+
+PROCESS NOTES:
+- Initial phase: [Notes on beginning stages]
+- Development: [Notes on how the creation evolved]
+- Challenges: [Problems encountered and solutions]
+- Breakthroughs: [Key insights during creation]
+
+FEEDBACK:
+- [Feedback received]
+- [Changes made in response]
+
+RESOURCES USED:
+- [Tools]
+- [References]
+- [Materials]
+
+RESULTS:
+- [Outcomes achieved]
+- [Metrics of success]
+- [Unexpected results]
+
+LESSONS LEARNED:
+- [What worked well]
+- [What didn't work]
+- [What to do differently next time]
+
+NEXT STEPS:
+- [ ] [Follow-up actions]
+- [ ] [Distribution plans]
+- [ ] [Related projects to consider]
+
+NOTES:
+[Any additional thoughts on the creative process or outcome] 
