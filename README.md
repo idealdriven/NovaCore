@@ -6,6 +6,28 @@ A structured knowledge management system designed to work effectively with AI as
 
 This Second Brain is organized to help you capture, organize, and retrieve your knowledge in a way that's both human-friendly and optimized for AI understanding. The structure follows a hybrid approach inspired by various knowledge management systems like PARA, Zettelkasten, and others.
 
+## 🚀 Installation
+
+### From GitHub
+
+1. Clone the repository:
+   ```bash
+   git clone https://github.com/sirioberati/SecondBrain.git
+   ```
+
+2. Navigate to the cloned directory:
+   ```bash
+   cd SecondBrain
+   ```
+
+3. Start using the Second Brain structure by adding your own notes and knowledge.
+
+### Requirements
+
+- **AI Agents**: This Second Brain system works best with AI agents like [Cursor](https://cursor.sh/) that can help you manage and interact with your knowledge base.
+- **Markdown Editor**: Any text editor that supports Markdown (VS Code, Obsidian, etc.)
+- **Git**: For version control and synchronization (optional but recommended)
+
 ## 🗂️ Directory Structure
 
 ### 1. Knowledge
