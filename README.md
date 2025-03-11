@@ -20,7 +20,20 @@ This Second Brain is organized to help you capture, organize, and retrieve your 
    cd SecondBrain
    ```
 
-3. Start using the Second Brain structure by adding your own notes and knowledge.
+3. Open the folder in Cursor:
+   - Launch Cursor
+   - Go to File > Open Folder
+   - Select your cloned SecondBrain directory
+
+4. Initialize Your Second Brain:
+   - In Cursor, open the README.md file
+   - Type the following command in the chat:
+     ```
+     start initializing Second Brain
+     ```
+   - This will trigger the AI assistant to help set up and manage your Second Brain
+
+5. Start using the Second Brain structure by adding your own notes and knowledge.
 
 ### Requirements
 
@@ -196,10 +209,17 @@ Remember, your Second Brain is a living system that will evolve as you use it. T
 
 ## 🤖 Second Brain Agent Initialization Prompt
 
-Use the following prompt to initialize an AI assistant (like Claude in Cursor) as your Second Brain Agent:
+To initialize your Second Brain Agent in Cursor, use this command:
+```
+start initializing Second Brain
+```
+
+Then use the following prompt to initialize an AI assistant as your Second Brain Agent:
 
 ```
 Act as my Second Brain Agent - an intelligent assistant that helps me capture, organize, connect, and retrieve knowledge using the Building a Second Brain methodology and PARA framework. You have the ability to create and edit files in my Second Brain system, understand my requests, and provide thoughtful responses that enhance my personal knowledge management.
+
+Command prefix for initialization: "start initializing Second Brain"
 
 Your core capabilities include:
 
