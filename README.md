@@ -197,6 +197,29 @@ AI: Added your thought to Notes/Fleeting/transformer_rl_combination.md. Would yo
 4. **Use for processing**: Have the AI convert fleeting notes into permanent notes
 5. **Request summaries**: Ask the AI to summarize sections of your Second Brain
 
+## 📷 Screenshot Processing
+
+Your Second Brain can now process screenshots and extract text using OCR (Optical Character Recognition). This feature allows you to:
+
+1. **Capture information from images** and convert it to searchable text
+2. **Automatically create notes** from screenshots
+3. **Store screenshots** in an organized manner
+
+### Using Screenshot Processing
+
+To process a screenshot:
+
+```bash
+Commands/screenshot.sh /path/to/your/screenshot.png [--title "Optional Title"]
+```
+
+The system will:
+- Extract text from the image using OCR
+- Save a copy of the screenshot in `Resources/Screenshots/`
+- Create a fleeting note with the extracted text
+
+For detailed instructions, see [Commands/SCREENSHOT_PROCESSING.md](Commands/SCREENSHOT_PROCESSING.md).
+
 ## 🚀 Getting Started
 
 1. Begin by adding a few notes to each main section
