@@ -165,6 +165,7 @@ Use these prefixes at the start of your messages to indicate content type:
 - **[Project: Name]** - For project updates
 - **[Learning: Topic]** - For learning notes
 - **[Creation: Name]** - For creative projects
+- **[Screenshot]** - For processing screenshots with OCR
 
 #### Additional Prefixes
 - **[Concept]** - For concept notes
