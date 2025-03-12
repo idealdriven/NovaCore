@@ -1,5 +1,7 @@
 # Second Brain Web UI - Implementation Guide
 
+> **IMPORTANT UPDATE**: While this guide describes a client/server web application architecture, the current implementation has evolved to use Electron for a desktop application approach. Please refer to the SecondBrainUI directory and its documentation for the actual implementation details. This document is kept for reference purposes.
+
 This guide will walk you through implementing a basic version of the Web UI chat interface for your Second Brain system. We'll focus on creating a minimal viable product (MVP) that demonstrates the core functionality.
 
 ## Project Structure
