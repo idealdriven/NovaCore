@@ -124,6 +124,77 @@ class Memory(MemoryBase, BaseSchema):
     access_count: int = 0
     related_memory_ids: Optional[List[UUID4]] = None
 
+# Memory Connection Schemas
+class MemoryConnectionBase(BaseModel):
+    source_memory_id: UUID4
+    target_memory_id: UUID4
+    connection_type: str = Field(..., description="Type of connection between memories")
+    connection_strength: float = Field(1.0, ge=0.0, le=1.0, description="Strength of the connection")
+
+class MemoryConnectionCreate(MemoryConnectionBase):
+    pass
+
+class MemoryConnectionUpdate(BaseModel):
+    connection_type: Optional[str] = None
+    connection_strength: Optional[float] = Field(None, ge=0.0, le=1.0)
+
+class MemoryConnection(MemoryConnectionBase):
+    id: UUID4
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        orm_mode = True
+
+# Add connections to the Memory response schema
+class Memory(MemoryBase):
+    id: UUID4
+    created_at: datetime
+    updated_at: datetime
+    owner_id: UUID4
+    client_id: UUID4
+    brand_id: Optional[UUID4] = None
+    customer_id: Optional[UUID4] = None
+    connections: List[MemoryConnection] = []
+    
+    class Config:
+        orm_mode = True
+
+# Memory with connected memories data
+class MemoryWithConnections(Memory):
+    connected_memories: List["MemoryWithConnections"] = []
+    
+    class Config:
+        orm_mode = True
+
+# Memory Response with connection information
+class ConnectedMemoryResponse(BaseModel):
+    memory: Memory
+    connected_memories: Dict[str, List[Memory]] = Field(
+        default_factory=lambda: {"related": [], "prerequisite": [], "followup": [], "contradicts": []}
+    )
+    
+# Search for Connected Memories
+class ConnectedMemoriesSearch(BaseModel):
+    memory_id: UUID4
+    connection_types: Optional[List[str]] = None
+    min_strength: Optional[float] = Field(0.0, ge=0.0, le=1.0)
+    limit: Optional[int] = 10
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "memory_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "connection_types": ["related", "followup"],
+                "min_strength": 0.5,
+                "limit": 10
+            }
+        }
+
+# Update Memory schema to reference the connected memories
+Memory.update_forward_refs()
+MemoryWithConnections.update_forward_refs()
+
 # Conversation schemas
 class ConversationBase(BaseModel):
     title: str
@@ -250,4 +321,47 @@ class VectorSearchQuery(BaseModel):
     query: str
     client_id: UUID4
     limit: int = 5
-    min_score: float = 0.7 
+    min_score: float = 0.7
+
+# Enhanced Search Schemas
+class EnhancedSearchQuery(BaseModel):
+    query: str
+    client_id: UUID4
+    brand_id: Optional[UUID4] = None
+    customer_id: Optional[UUID4] = None
+    limit: int = Field(5, ge=1, le=50)
+    threshold: float = Field(0.6, ge=0.0, le=1.0)
+    hybrid_search: bool = True
+    vector_weight: float = Field(0.7, ge=0.0, le=1.0)
+    keyword_weight: float = Field(0.3, ge=0.0, le=1.0)
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "query": "marketing strategy",
+                "client_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "limit": 10,
+                "threshold": 0.6,
+                "hybrid_search": True,
+                "vector_weight": 0.7,
+                "keyword_weight": 0.3
+            }
+        }
+
+class ScoringDetails(BaseModel):
+    final_score: float
+    vector_similarity: float
+    keyword_score: float
+    combined_score: float
+    recency_factor: float
+    importance_factor: float
+    matched_terms: List[str]
+    total_terms_matched: int
+    query_term_count: int
+
+class DetailedSearchResult(BaseModel):
+    memory: Memory
+    scoring: ScoringDetails
+    
+    class Config:
+        orm_mode = True 

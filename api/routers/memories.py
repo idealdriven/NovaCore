@@ -11,11 +11,11 @@ from sqlalchemy.sql import text
 from sqlalchemy.orm import Session
 from models import Memory, Client, Customer, Brand, Owner, MemoryConnection
 from schemas import Memory as MemorySchema
-from schemas import MemoryCreate, MemoryUpdate, ConnectedMemoryResponse, VectorSearchQuery
+from schemas import MemoryCreate, MemoryUpdate, ConnectedMemoryResponse, VectorSearchQuery, EnhancedSearchQuery, DetailedSearchResult
 from database import get_db
 from auth.jwt import get_current_active_user
 from api.dependencies import get_client_owner, get_memory_owner, get_pagination, get_customer_access, get_brand_access
-from utils.vector import process_memory_embedding, memory_similarity_search
+from utils.vector import process_memory_embedding, memory_similarity_search, detailed_memory_search
 from utils.ai import calculate_importance_score, extract_key_topics
 from utils.memory_analyzer import analyze_memory_content
 
@@ -667,4 +667,134 @@ async def get_memory_with_connections(
             continue
     
     response.connected_memories = connected_memories
-    return response 
+    return response
+
+# New enhanced search endpoint
+@router.post("/enhanced-search", response_model=List[MemorySchema])
+async def enhanced_memory_search(
+    search_query: EnhancedSearchQuery,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """
+    Search memories using enhanced hybrid search combining vector similarity and keyword matching.
+    
+    - Vector similarity: Finds semantically similar memories even with different wording
+    - Keyword matching: Finds memories containing exact search terms
+    - Relevance scoring: Combines similarity, recency, and importance
+    
+    Returns list of memories sorted by relevance.
+    """
+    try:
+        # Verify user has access to the client
+        result = await db.execute(select(Client).filter(Client.id == search_query.client_id))
+        client = result.scalars().first()
+        
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Client with ID {search_query.client_id} not found"
+            )
+            
+        if client.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions to access this client"
+            )
+        
+        # Verify access to brand if provided
+        if search_query.brand_id:
+            _ = await get_brand_access(search_query.brand_id, db, current_user)
+        
+        # Verify access to customer if provided
+        if search_query.customer_id:
+            _ = await get_customer_access(search_query.customer_id, db, current_user)
+            
+        # Perform enhanced search
+        memories = await memory_similarity_search(
+            db=db,
+            query=search_query.query,
+            client_id=search_query.client_id,
+            brand_id=search_query.brand_id,
+            customer_id=search_query.customer_id,
+            limit=search_query.limit,
+            threshold=search_query.threshold,
+            hybrid_search=search_query.hybrid_search,
+            vector_weight=search_query.vector_weight,
+            keyword_weight=search_query.keyword_weight
+        )
+        
+        return memories
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in enhanced search: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during search: {str(e)}"
+        )
+
+# Detailed search with scoring information
+@router.post("/detailed-search", response_model=List[DetailedSearchResult])
+async def detailed_memory_search_endpoint(
+    search_query: EnhancedSearchQuery,
+    db: AsyncSession = Depends(get_db),
+    current_user = Depends(get_current_active_user)
+):
+    """
+    Search memories with detailed scoring information.
+    
+    Returns list of memories with scoring breakdown to help understand
+    why certain memories are ranked higher than others.
+    """
+    try:
+        # Verify user has access to the client
+        result = await db.execute(select(Client).filter(Client.id == search_query.client_id))
+        client = result.scalars().first()
+        
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Client with ID {search_query.client_id} not found"
+            )
+            
+        if client.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions to access this client"
+            )
+        
+        # Verify access to brand if provided
+        if search_query.brand_id:
+            _ = await get_brand_access(search_query.brand_id, db, current_user)
+        
+        # Verify access to customer if provided
+        if search_query.customer_id:
+            _ = await get_customer_access(search_query.customer_id, db, current_user)
+            
+        # Perform detailed search
+        detailed_results = await detailed_memory_search(
+            db=db,
+            query=search_query.query,
+            client_id=search_query.client_id,
+            brand_id=search_query.brand_id,
+            customer_id=search_query.customer_id,
+            limit=search_query.limit,
+            threshold=search_query.threshold,
+            vector_weight=search_query.vector_weight,
+            keyword_weight=search_query.keyword_weight
+        )
+        
+        return detailed_results
+        
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in detailed search: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred during detailed search: {str(e)}"
+        ) 

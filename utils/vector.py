@@ -18,21 +18,31 @@ openai.api_key = os.getenv("OPENAI_API_KEY", "")
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-async def generate_embedding(text: str) -> List[float]:
+async def generate_embedding(text: str, model: str = "text-embedding-3-small") -> List[float]:
     """
     Generate an embedding vector for a text using OpenAI's embedding API.
+    
+    Args:
+        text: The text to embed
+        model: The embedding model to use:
+               - text-embedding-3-small (1536 dimensions, faster/cheaper)
+               - text-embedding-3-large (3072 dimensions, more powerful)
+    
+    Returns:
+        A list of floats representing the embedding vector
     """
     try:
         # Check if API key is set
         if not openai.api_key:
             logger.warning("OpenAI API key not set. Using random embedding for development.")
             # For development, return a random embedding if API key is not set
-            return list(np.random.uniform(-1, 1, 1536))
+            return list(np.random.uniform(-1, 1, 1536 if "small" in model else 3072))
         
         # Generate embedding using OpenAI
         response = await openai.Embedding.acreate(
-            model="text-embedding-ada-002",
-            input=text
+            model=model,
+            input=text,
+            encoding_format="float"  # Get raw float values
         )
         
         # Extract the embedding from the response
@@ -43,148 +53,161 @@ async def generate_embedding(text: str) -> List[float]:
         logger.error(f"Error generating embedding: {str(e)}")
         logger.error(traceback.format_exc())
         # Return random embedding as fallback
-        return list(np.random.uniform(-1, 1, 1536))
+        return list(np.random.uniform(-1, 1, 1536 if "small" in model else 3072))
+
+# Function to calculate vector similarity
+def calculate_similarity(vec1: List[float], vec2: List[float]) -> float:
+    """
+    Calculate cosine similarity between two vectors.
+    
+    Args:
+        vec1: First vector
+        vec2: Second vector
+        
+    Returns:
+        Cosine similarity score (0-1)
+    """
+    # Convert to numpy arrays for efficient computation
+    array1 = np.array(vec1)
+    array2 = np.array(vec2)
+    
+    # Calculate dot product
+    dot_product = np.dot(array1, array2)
+    
+    # Calculate magnitudes
+    magnitude1 = np.linalg.norm(array1)
+    magnitude2 = np.linalg.norm(array2)
+    
+    # Calculate cosine similarity
+    if magnitude1 == 0 or magnitude2 == 0:
+        return 0.0
+    
+    cosine_similarity = dot_product / (magnitude1 * magnitude2)
+    return float(cosine_similarity)
+
+# Function to calculate BM25 text relevance
+def calculate_bm25_score(query: str, text: str) -> float:
+    """
+    Calculate BM25 relevance score (simplified version).
+    
+    Args:
+        query: Search query
+        text: Text to score against query
+        
+    Returns:
+        BM25 relevance score (0-1)
+    """
+    # Simple implementation with normalized score
+    query_terms = set(query.lower().split())
+    doc_terms = set(text.lower().split())
+    
+    if not query_terms or not doc_terms:
+        return 0.0
+    
+    # Count term matches
+    matches = len(query_terms.intersection(doc_terms))
+    
+    # Calculate score based on percentage of query terms present
+    score = matches / len(query_terms)
+    
+    # Apply a length penalty for extremely long or short documents
+    length_ratio = min(len(doc_terms), 100) / 100  # Cap at 100 terms
+    length_factor = 0.5 + (length_ratio * 0.5)  # 0.5-1.0 range
+    
+    return score * length_factor
 
 async def memory_similarity_search(
     db: AsyncSession,
     query: str,
     client_id: uuid.UUID,
-    customer_id: Optional[uuid.UUID] = None,
     brand_id: Optional[uuid.UUID] = None,
+    customer_id: Optional[uuid.UUID] = None,
     limit: int = 5,
-    min_score: float = 0.7
+    threshold: float = 0.6,
+    hybrid_search: bool = True,
+    vector_weight: float = 0.7,
+    keyword_weight: float = 0.3
 ) -> List[Memory]:
     """
-    Search for similar memories using vector similarity.
-    Can filter by customer_id and/or brand_id if provided.
+    Search for memories similar to the query using a hybrid approach combining:
+    1. Vector embeddings similarity (semantic search)
+    2. Keyword matching (lexical search)
+    
+    Args:
+        db: Database session
+        query: The search query text
+        client_id: Client ID to filter memories
+        brand_id: Optional brand ID to filter memories
+        customer_id: Optional customer ID to filter memories
+        limit: Maximum number of results to return
+        threshold: Minimum combined similarity score (0-1)
+        hybrid_search: Whether to use hybrid search (if False, uses only vector search)
+        vector_weight: Weight to give to vector similarity (0-1)
+        keyword_weight: Weight to give to keyword matching (0-1)
+        
+    Returns:
+        List of Memory objects sorted by relevance
     """
     try:
-        # Generate embedding for query
+        # Generate embedding for the search query
         query_embedding = await generate_embedding(query)
         
-        # Log for debugging
-        logger.info(f"Generated embedding for query: {query[:50]}...")
+        # Fetch memories for this client/brand/customer
+        stmt = select(Memory).where(Memory.client_id == client_id)
         
-        try:
-            # Check if pgvector extension is installed
-            test_sql = text("SELECT 1 FROM pg_extension WHERE extname = 'vector'")
-            result = await db.execute(test_sql)
-            if not result.scalar():
-                logger.error("pgvector extension is not installed in the database")
-                return []
-            
-            # Convert embedding to PostgreSQL array format
-            embedding_string = "{" + ",".join([str(x) for x in query_embedding]) + "}"
-            
-            # SQL query using cosine similarity with pgvector
-            sql_base = """
-            SELECT m.id, m.title, m.content, m.client_id, m.customer_id, m.brand_id, m.memory_type,
-                   m.importance_score, m.last_accessed, m.access_count, m.tags,
-                   m.meta_data, m.created_at, m.updated_at, m.related_memory_ids,
-                   1 - (m.embedding <=> :embedding) as similarity
-            FROM memories m
-            WHERE m.client_id = :client_id
-              AND m.embedding IS NOT NULL
-              AND 1 - (m.embedding <=> :embedding) > :min_score
-            """
-            
-            # Add customer_id filter if provided
-            if customer_id:
-                sql_base += " AND m.customer_id = :customer_id"
-                
-            # Add brand_id filter if provided
-            if brand_id:
-                sql_base += " AND m.brand_id = :brand_id"
-            
-            sql_base += """
-            ORDER BY similarity DESC
-            LIMIT :limit
-            """
-            
-            # Execute query
-            params = {
-                "embedding": embedding_string,
-                "client_id": str(client_id),
-                "min_score": min_score,
-                "limit": limit
-            }
-            
-            if customer_id:
-                params["customer_id"] = str(customer_id)
-                
-            if brand_id:
-                params["brand_id"] = str(brand_id)
-                
-            search_result = await db.execute(text(sql_base), params)
-            
-        except Exception as vector_error:
-            logger.error(f"Vector search error: {str(vector_error)}")
-            logger.error(traceback.format_exc())
-            
-            # Fallback to non-vector search
-            logger.info("Falling back to text-based search without vectors")
-            sql_fallback_base = """
-            SELECT m.id, m.title, m.content, m.client_id, m.customer_id, m.brand_id, m.memory_type,
-                   m.importance_score, m.last_accessed, m.access_count, m.tags,
-                   m.meta_data, m.created_at, m.updated_at, m.related_memory_ids,
-                   0.7 as similarity
-            FROM memories m
-            WHERE m.client_id = :client_id
-              AND (m.title ILIKE :query OR m.content ILIKE :query)
-            """
-            
-            # Add customer_id filter if provided
-            if customer_id:
-                sql_fallback_base += " AND m.customer_id = :customer_id"
-                
-            # Add brand_id filter if provided  
-            if brand_id:
-                sql_fallback_base += " AND m.brand_id = :brand_id"
-                
-            sql_fallback_base += " LIMIT :limit"
-            
-            search_query = f"%{query}%"
-            params = {
-                "query": search_query,
-                "client_id": str(client_id),
-                "limit": limit
-            }
-            
-            if customer_id:
-                params["customer_id"] = str(customer_id)
-                
-            if brand_id:
-                params["brand_id"] = str(brand_id)
-                
-            search_result = await db.execute(text(sql_fallback_base), params)
+        if brand_id:
+            stmt = stmt.where(Memory.brand_id == brand_id)
         
-        # Get results and create Memory objects
-        memories = []
-        for row in search_result:
-            memory = Memory(
-                id=row.id,
-                title=row.title,
-                content=row.content,
-                client_id=row.client_id,
-                customer_id=row.customer_id,
-                brand_id=row.brand_id,
-                memory_type=row.memory_type,
-                importance_score=row.importance_score,
-                last_accessed=row.last_accessed,
-                access_count=row.access_count,
-                tags=row.tags,
-                meta_data=row.meta_data,
-                created_at=row.created_at,
-                updated_at=row.updated_at,
-                related_memory_ids=row.related_memory_ids
-            )
-            memories.append(memory)
+        if customer_id:
+            stmt = stmt.where(Memory.customer_id == customer_id)
+            
+        result = await db.execute(stmt)
+        memories = result.scalars().all()
         
-        logger.info(f"Search returned {len(memories)} results")
-        return memories
-    
+        # Calculate similarity scores for each memory
+        scored_memories = []
+        
+        for memory in memories:
+            # Get or calculate the memory's embedding
+            memory_embedding = json.loads(memory.embedding) if memory.embedding else await process_memory_embedding(memory.content)
+            
+            # Calculate vector similarity
+            vector_similarity = calculate_similarity(query_embedding, memory_embedding)
+            
+            if hybrid_search:
+                # Calculate keyword relevance (BM25 score)
+                keyword_score = calculate_bm25_score(query, memory.content)
+                
+                # Calculate hybrid score with weights
+                combined_score = (vector_similarity * vector_weight) + (keyword_score * keyword_weight)
+            else:
+                # Use only vector similarity
+                combined_score = vector_similarity
+            
+            # Calculate recency boost (newer memories get slight preference)
+            days_old = (memory.updated_at - memory.created_at).days if memory.updated_at else 0
+            recency_factor = 1.0 - (min(days_old, 365) / 365 * 0.1)  # Max 10% penalty for old memories
+            
+            # Apply importance boost
+            importance_boost = memory.importance_score if memory.importance_score is not None else 0.5
+            
+            # Final relevance score with boosts
+            final_score = combined_score * recency_factor * (0.8 + (importance_boost * 0.2))
+            
+            if final_score >= threshold:
+                scored_memories.append((memory, final_score))
+        
+        # Sort by score (descending) and return top results
+        scored_memories.sort(key=lambda x: x[1], reverse=True)
+        
+        # Extract just the memories from scored_memories
+        result_memories = [memory for memory, score in scored_memories[:limit]]
+        
+        logger.info(f"Memory search for '{query}' returned {len(result_memories)} results")
+        return result_memories
+        
     except Exception as e:
-        logger.error(f"Error in similarity search: {str(e)}")
+        logger.error(f"Error in memory search: {str(e)}")
         logger.error(traceback.format_exc())
         return []
 
@@ -200,4 +223,101 @@ async def process_memory_embedding(content: str) -> List[float]:
         logger.error(f"Error processing memory embedding: {str(e)}")
         logger.error(traceback.format_exc())
         # Return empty embedding in case of error
+        return []
+
+async def detailed_memory_search(
+    db: AsyncSession,
+    query: str,
+    client_id: uuid.UUID,
+    brand_id: Optional[uuid.UUID] = None,
+    customer_id: Optional[uuid.UUID] = None,
+    limit: int = 5,
+    threshold: float = 0.6,
+    vector_weight: float = 0.7,
+    keyword_weight: float = 0.3
+) -> List[Dict[str, Any]]:
+    """
+    Search for memories with detailed scoring information for diagnostics.
+    
+    Args:
+        Same as memory_similarity_search
+        
+    Returns:
+        List of dictionaries with memory and detailed scoring information
+    """
+    try:
+        # Generate embedding for the search query
+        query_embedding = await generate_embedding(query)
+        
+        # Fetch memories for this client/brand/customer
+        stmt = select(Memory).where(Memory.client_id == client_id)
+        
+        if brand_id:
+            stmt = stmt.where(Memory.brand_id == brand_id)
+        
+        if customer_id:
+            stmt = stmt.where(Memory.customer_id == customer_id)
+            
+        result = await db.execute(stmt)
+        memories = result.scalars().all()
+        
+        # Calculate similarity scores for each memory
+        detailed_results = []
+        
+        for memory in memories:
+            # Get or calculate the memory's embedding
+            memory_embedding = json.loads(memory.embedding) if memory.embedding else await process_memory_embedding(memory.content)
+            
+            # Calculate vector similarity
+            vector_similarity = calculate_similarity(query_embedding, memory_embedding)
+            
+            # Calculate keyword relevance (BM25 score)
+            keyword_score = calculate_bm25_score(query, memory.content)
+            
+            # Calculate hybrid score with weights
+            combined_score = (vector_similarity * vector_weight) + (keyword_score * keyword_weight)
+            
+            # Calculate recency boost
+            days_old = (memory.updated_at - memory.created_at).days if memory.updated_at else 0
+            recency_factor = 1.0 - (min(days_old, 365) / 365 * 0.1)
+            
+            # Apply importance boost
+            importance_boost = memory.importance_score if memory.importance_score is not None else 0.5
+            importance_factor = 0.8 + (importance_boost * 0.2)
+            
+            # Final relevance score with boosts
+            final_score = combined_score * recency_factor * importance_factor
+            
+            if final_score >= threshold:
+                # Calculate matched query terms
+                query_terms = set(query.lower().split())
+                memory_terms = set(memory.content.lower().split())
+                matched_terms = list(query_terms.intersection(memory_terms))
+                
+                # Create detailed result
+                detailed_result = {
+                    "memory": memory,
+                    "scoring": {
+                        "final_score": round(final_score, 4),
+                        "vector_similarity": round(vector_similarity, 4),
+                        "keyword_score": round(keyword_score, 4),
+                        "combined_score": round(combined_score, 4),
+                        "recency_factor": round(recency_factor, 4),
+                        "importance_factor": round(importance_factor, 4),
+                        "matched_terms": matched_terms,
+                        "total_terms_matched": len(matched_terms),
+                        "query_term_count": len(query_terms)
+                    }
+                }
+                detailed_results.append(detailed_result)
+        
+        # Sort by final score (descending)
+        detailed_results.sort(key=lambda x: x["scoring"]["final_score"], reverse=True)
+        
+        logger.info(f"Detailed memory search for '{query}' returned {len(detailed_results)} results")
+        return detailed_results[:limit]
+        
+    except Exception as e:
+        logger.error(f"Error in detailed memory search: {str(e)}")
+        logger.error(traceback.format_exc())
         return [] 
