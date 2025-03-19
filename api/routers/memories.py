@@ -8,10 +8,10 @@ import logging
 import traceback
 import json
 from sqlalchemy.sql import text
-
-from models import Memory, Client, Customer, Brand
+from sqlalchemy.orm import Session
+from models import Memory, Client, Customer, Brand, Owner, MemoryConnection
 from schemas import Memory as MemorySchema
-from schemas import MemoryCreate, MemoryUpdate, VectorSearchQuery
+from schemas import MemoryCreate, MemoryUpdate, ConnectedMemoryResponse, VectorSearchQuery
 from database import get_db
 from auth.jwt import get_current_active_user
 from api.dependencies import get_client_owner, get_memory_owner, get_pagination, get_customer_access, get_brand_access
@@ -620,4 +620,51 @@ async def analyze_and_suggest_associations(
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"An error occurred while analyzing the memory: {str(e)}"
-        ) 
+        )
+
+# Get a memory with all its connections
+@router.get("/{memory_id}/with-connections", response_model=ConnectedMemoryResponse)
+async def get_memory_with_connections(
+    memory_id: uuid.UUID,
+    connection_types: Optional[List[str]] = Query(None, description="Filter by connection types"),
+    min_strength: Optional[float] = Query(0.0, description="Minimum connection strength", ge=0.0, le=1.0),
+    db: Session = Depends(get_db),
+    current_user: Owner = Depends(get_current_active_user)
+):
+    # First verify the user has access to this memory
+    memory = await get_memory_access(memory_id, current_user, db)
+    
+    # Create the base response
+    response = ConnectedMemoryResponse(memory=memory)
+    
+    # Get all outgoing connections for this memory
+    query = db.query(MemoryConnection).filter(
+        MemoryConnection.source_memory_id == memory_id
+    )
+    
+    # Apply filters if provided
+    if connection_types:
+        query = query.filter(MemoryConnection.connection_type.in_(connection_types))
+    if min_strength is not None:
+        query = query.filter(MemoryConnection.connection_strength >= min_strength)
+    
+    connections = query.all()
+    
+    # Organize connections by type
+    connected_memories = {}
+    
+    for connection in connections:
+        # Verify access to the target memory
+        try:
+            target_memory = await get_memory_access(connection.target_memory_id, current_user, db)
+            
+            if connection.connection_type not in connected_memories:
+                connected_memories[connection.connection_type] = []
+            
+            connected_memories[connection.connection_type].append(target_memory)
+        except HTTPException:
+            # Skip memories the user doesn't have access to
+            continue
+    
+    response.connected_memories = connected_memories
+    return response 

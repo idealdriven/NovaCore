@@ -182,4 +182,59 @@ def get_pagination(
     """
     Common pagination parameters
     """
-    return {"skip": skip, "limit": limit} 
+    return {"skip": skip, "limit": limit}
+
+async def get_memory_access(
+    memory_id: uuid.UUID,
+    current_user: Owner,
+    db: AsyncSession
+):
+    """
+    Check if a user has access to a specific memory and return the memory if so.
+    
+    Args:
+        memory_id: UUID of the memory
+        current_user: Current authenticated user
+        db: Database session
+        
+    Returns:
+        Memory object if the user has access
+        
+    Raises:
+        HTTPException if memory not found or user doesn't have access
+    """
+    try:
+        result = await db.execute(select(Memory).filter(Memory.id == memory_id))
+        memory = result.scalars().first()
+        
+        if not memory:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Memory with ID {memory_id} not found"
+            )
+            
+        result = await db.execute(select(Client).filter(Client.id == memory.client_id))
+        client = result.scalars().first()
+        
+        if not client:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"Client with ID {memory.client_id} not found"
+            )
+            
+        if client.owner_id != current_user.id:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Not enough permissions to access this memory"
+            )
+            
+        return memory
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error in get_memory_access: {str(e)}")
+        logger.error(traceback.format_exc())
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"An error occurred while checking memory access: {str(e)}"
+        ) 
