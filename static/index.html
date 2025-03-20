@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atlas Chat</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            background-color: #f5f5f5;
+        }
+        header {
+            background-color: #2c3e50;
+            color: white;
+            padding: 1rem;
+            text-align: center;
+        }
+        .container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 1rem;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .chat-container {
+            flex: 1;
+            overflow-y: auto;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-bottom: 1rem;
+            background-color: white;
+        }
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.8rem;
+            border-radius: 8px;
+            max-width: 80%;
+            word-wrap: break-word;
+        }
+        .user-message {
+            background-color: #3498db;
+            color: white;
+            align-self: flex-end;
+            margin-left: auto;
+        }
+        .system-message {
+            background-color: #e0e0e0;
+            color: #333;
+        }
+        .input-container {
+            display: flex;
+            gap: 10px;
+        }
+        #message-input {
+            flex: 1;
+            padding: 0.8rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        button {
+            padding: 0.8rem 1.5rem;
+            background-color: #2c3e50;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #1e2b38;
+        }
+        .login-container {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+            max-width: 400px;
+            margin: 0 auto;
+        }
+        .login-container input {
+            width: 100%;
+            padding: 0.8rem;
+            margin-bottom: 1rem;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            box-sizing: border-box;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Atlas Memory System</h1>
+    </header>
+    
+    <div class="container">
+        <div id="login-view" class="login-container">
+            <h2>Connect to Atlas</h2>
+            <input type="text" id="client-code" placeholder="Enter your client code">
+            <button id="login-button">Connect</button>
+        </div>
+
+        <div id="chat-view" class="hidden">
+            <div id="chat-container" class="chat-container">
+                <!-- Messages will be added here -->
+            </div>
+            <div class="input-container">
+                <input type="text" id="message-input" placeholder="Type your message here...">
+                <button id="send-button">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const loginView = document.getElementById('login-view');
+        const chatView = document.getElementById('chat-view');
+        const clientCodeInput = document.getElementById('client-code');
+        const loginButton = document.getElementById('login-button');
+        const chatContainer = document.getElementById('chat-container');
+        const messageInput = document.getElementById('message-input');
+        const sendButton = document.getElementById('send-button');
+        
+        // API settings
+        const API_BASE_URL = window.location.origin + '/api/v1';
+        let clientId = null;
+        let conversationId = null;
+        let messageIndex = 0;
+
+        // Add event listeners
+        loginButton.addEventListener('click', handleLogin);
+        sendButton.addEventListener('click', sendMessage);
+        messageInput.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                sendMessage();
+            }
+        });
+
+        // Initialize
+        function init() {
+            // Check if we have stored client ID
+            const storedClientId = localStorage.getItem('atlas_client_id');
+            if (storedClientId) {
+                clientId = storedClientId;
+                conversationId = localStorage.getItem('atlas_conversation_id') || generateId();
+                messageIndex = parseInt(localStorage.getItem('atlas_message_index') || '0');
+                
+                // Show chat view
+                loginView.classList.add('hidden');
+                chatView.classList.remove('hidden');
+                
+                // Add welcome message
+                addMessage('Welcome back to Atlas! How can I help you today?', 'system');
+            }
+        }
+
+        // Handle login with client code
+        async function handleLogin() {
+            const clientCode = clientCodeInput.value.trim();
+            if (!clientCode) {
+                alert('Please enter your client code');
+                return;
+            }
+            
+            try {
+                // Authenticate with client code
+                const response = await fetch(`${API_BASE_URL}/conversations/authenticate/${clientCode}`);
+                if (!response.ok) {
+                    throw new Error('Authentication failed');
+                }
+                
+                const data = await response.json();
+                clientId = data.client_id;
+                conversationId = generateId();
+                messageIndex = 0;
+                
+                // Store data
+                localStorage.setItem('atlas_client_id', clientId);
+                localStorage.setItem('atlas_conversation_id', conversationId);
+                localStorage.setItem('atlas_message_index', messageIndex.toString());
+                
+                // Show chat view
+                loginView.classList.add('hidden');
+                chatView.classList.remove('hidden');
+                
+                // Add welcome message
+                const welcomeMessage = `Welcome ${data.client_name}! I'm Atlas, your memory system. What would you like to discuss today?`;
+                addMessage(welcomeMessage, 'system');
+            } catch (error) {
+                console.error('Login error:', error);
+                alert('Login failed. Please check your client code and try again.');
+            }
+        }
+
+        // Send a message
+        async function sendMessage() {
+            const messageText = messageInput.value.trim();
+            if (!messageText) return;
+            
+            // Add user message to chat
+            addMessage(messageText, 'user');
+            messageInput.value = '';
+            
+            try {
+                // Show thinking indicator
+                addMessage('Thinking...', 'system', true);
+                
+                // Call the chat endpoint
+                const response = await fetch(`${API_BASE_URL}/chat`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        client_id: clientId,
+                        message: messageText,
+                        conversation_id: conversationId
+                    })
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to get response from Atlas');
+                }
+                
+                const data = await response.json();
+                
+                // Remove thinking message
+                const thinkingMessage = document.querySelector('.thinking-message');
+                if (thinkingMessage) {
+                    thinkingMessage.remove();
+                }
+                
+                // Update conversation ID if this is a new conversation
+                if (!conversationId) {
+                    conversationId = data.conversation_id;
+                    localStorage.setItem('atlas_conversation_id', conversationId);
+                }
+                
+                // Add system response
+                addMessage(data.response, 'system');
+                
+            } catch (error) {
+                console.error('Error sending message:', error);
+                
+                // Remove thinking message
+                const thinkingMessage = document.querySelector('.thinking-message');
+                if (thinkingMessage) {
+                    thinkingMessage.remove();
+                }
+                
+                addMessage('Sorry, I encountered an error processing your message. Please try again.', 'system');
+            }
+        }
+
+        // Add a message to the chat
+        function addMessage(text, type, isThinking = false) {
+            const messageElement = document.createElement('div');
+            messageElement.classList.add('message');
+            messageElement.classList.add(type === 'user' ? 'user-message' : 'system-message');
+            if (isThinking) {
+                messageElement.classList.add('thinking-message');
+            }
+            messageElement.textContent = text;
+            chatContainer.appendChild(messageElement);
+            
+            // Scroll to the bottom
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        // Generate a unique ID for conversations
+        function generateId() {
+            return Date.now().toString(36) + Math.random().toString(36).substring(2);
+        }
+
+        // Initialize the app
+        init();
+    </script>
+</body>
+</html> 

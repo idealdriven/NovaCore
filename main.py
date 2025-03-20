@@ -1,5 +1,7 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 import logging
 import os
 from contextlib import asynccontextmanager
@@ -9,13 +11,14 @@ from api.routers import api_router
 from database import initialize_db
 
 # Import routers individually to avoid circular imports
-from api.routers import owners, clients, memories, brands, customers
+from api.routers import owners, clients, memories, brands, customers, conversations
 # Uncomment these as they are implemented
-# from api.routers import conversations, strategic_plans, execution_logs, tasks
+# from api.routers import strategic_plans, execution_logs, tasks
 # Add new routers
 from api.routers import memory_connections, knowledge_graph
 # Custom GPT integration
 from api.routers import conversations, gpt_bridge
+from api.routers import chat
 
 # Configure logging
 logging.basicConfig(
@@ -42,21 +45,23 @@ async def lifespan(app: FastAPI):
 
 # Create FastAPI application
 app = FastAPI(
-    title=settings.PROJECT_NAME,
+    title="Atlas Memory API",
     description="API for the Atlas AI memory system",
     version="0.1.0",
     lifespan=lifespan,
 )
 
 # Set up CORS
-if settings.BACKEND_CORS_ORIGINS:
-    app.add_middleware(
-        CORSMiddleware,
-        allow_origins=[str(origin) for origin in settings.BACKEND_CORS_ORIGINS],
-        allow_credentials=True,
-        allow_methods=["*"],
-        allow_headers=["*"],
-    )
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # In production, replace with specific origins
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Include API router
 app.include_router(api_router, prefix=settings.API_V1_STR)
@@ -73,47 +78,25 @@ app.include_router(knowledge_graph.router, prefix=f"{settings.API_V1_STR}/knowle
 # Custom GPT integration
 app.include_router(conversations.router, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
 app.include_router(gpt_bridge.router, prefix=f"{settings.API_V1_STR}/gpt", tags=["gpt bridge"])
+app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
 # Uncomment these as they are implemented
 # app.include_router(execution_logs.router, prefix=f"{settings.API_V1_STR}/execution-logs", tags=["execution logs"])
 # app.include_router(tasks.router, prefix=f"{settings.API_V1_STR}/tasks", tags=["tasks"])
 
+# Root path
 @app.get("/")
-async def root():
-    """
-    Root endpoint for health check and API information.
-    """
-    return {
-        "status": "online",
-        "app_name": settings.PROJECT_NAME,
-        "api_version": settings.API_V1_STR,
-        "hierarchy": {
-            "owner": {
-                "description": "The account owner/administrator who logs in",
-                "endpoints": "/api/v1/owners/"
-            },
-            "clients": {
-                "description": "Organizations managed by owners (e.g., RALLY)",
-                "endpoints": "/api/v1/clients/",
-                "parent": "owner"
-            },
-            "brands": {
-                "description": "Brands managed by clients (e.g., Ruby + Begonia)",
-                "endpoints": "/api/v1/brands/",
-                "parent": "clients"
-            },
-            "customers": {
-                "description": "Customers associated with brands",
-                "endpoints": "/api/v1/customers/",
-                "parent": "brands"
-            },
-            "memories": {
-                "description": "Knowledge items associated with clients and customers",
-                "endpoints": "/api/v1/memories/",
-                "parent": ["clients", "customers"]
-            }
-        },
-        "documentation": "/docs"
-    }
+async def read_root():
+    return FileResponse("index.html")
+
+# Health check
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
+
+# Remove or comment out this duplicate route
+# @app.get("/")
+# async def root():
+#     return {"message": "Welcome to Atlas API"}
 
 if __name__ == "__main__":
     import uvicorn
