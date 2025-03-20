@@ -14,3 +14,4 @@ anthropic==0.3.0
 pydantic-settings
 greenlet
 PyJWT
+psycopg2-binary
