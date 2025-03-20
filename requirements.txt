@@ -11,7 +11,7 @@ python-dotenv
 email_validator
 openai==0.27.0
 anthropic==0.3.0
-pydantic-settings==1.2.0
+pydantic-settings==1.99
 greenlet
 PyJWT
 psycopg2-binary
