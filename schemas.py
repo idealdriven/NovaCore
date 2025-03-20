@@ -197,21 +197,122 @@ MemoryWithConnections.update_forward_refs()
 
 # Conversation schemas
 class ConversationBase(BaseModel):
-    title: str
     client_id: UUID4
-    summary: Optional[str] = None
-    participants: Optional[List[str]] = None
+    brand_id: Optional[UUID4] = None
+    customer_id: Optional[UUID4] = None
+    conversation_id: Optional[str] = None  # Used to link related messages
 
 class ConversationCreate(ConversationBase):
-    pass
+    message: str
+    response: Optional[str] = None
+    message_index: Optional[int] = 0
 
-class ConversationUpdate(BaseModel):
-    title: Optional[str] = None
-    summary: Optional[str] = None
-    participants: Optional[List[str]] = None
+class ConversationResponse(ConversationBase):
+    id: UUID4
+    message: str
+    response: str
+    message_index: int
+    created_at: datetime
+    
+    class Config:
+        orm_mode = True
 
-class Conversation(ConversationBase, BaseSchema):
-    pass
+class ConversationMemory(BaseModel):
+    client_id: UUID4
+    brand_id: Optional[UUID4] = None
+    customer_id: Optional[UUID4] = None
+    conversation_id: str
+    message_index: int
+    message: str
+    response: str
+    referenced_memory_ids: Optional[List[str]] = []
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "client_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "brand_id": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+                "conversation_id": "chat_abc123",
+                "message_index": 1,
+                "message": "What was our marketing strategy for Ruby + Begonia's summer collection?",
+                "response": "The marketing strategy for Ruby + Begonia's summer collection focused on...",
+                "referenced_memory_ids": ["3fa85f64-5717-4562-b3fc-2c963f66afa8"]
+            }
+        }
+
+class RelevantMemory(BaseModel):
+    id: str
+    title: str
+    content: str
+    memory_type: str
+    created_at: Optional[str] = None
+
+class ConversationContext(BaseModel):
+    client_id: str
+    client_name: str
+    brand_id: Optional[str] = None
+    detected_topics: List[str]
+    context_summary: str
+    relevant_memories: List[RelevantMemory]
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "client_id": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+                "client_name": "RALLY",
+                "brand_id": "3fa85f64-5717-4562-b3fc-2c963f66afa7",
+                "detected_topics": ["marketing", "summer", "collection"],
+                "context_summary": "Client: RALLY\n\nBrand: Ruby + Begonia\n\nRelated memory (brand_strategy): The summer collection launch is planned for May 15th...",
+                "relevant_memories": [
+                    {
+                        "id": "3fa85f64-5717-4562-b3fc-2c963f66afa8",
+                        "title": "Summer Collection Strategy",
+                        "content": "The summer collection launch is planned for May 15th...",
+                        "memory_type": "brand_strategy",
+                        "created_at": "2023-04-01T12:00:00Z"
+                    }
+                ]
+            }
+        }
+
+# Bridge API Schemas
+class GPTRequest(BaseModel):
+    client_code: Optional[str] = None
+    client_id: Optional[UUID4] = None
+    message: str
+    conversation_history: Optional[List[Dict[str, str]]] = []
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "client_code": "ABC12345",
+                "message": "What was our marketing strategy for the summer collection?",
+                "conversation_history": [
+                    {"role": "user", "content": "Hi, I need help with marketing."},
+                    {"role": "assistant", "content": "Hello! I'd be happy to help with your marketing questions."}
+                ]
+            }
+        }
+
+class GPTResponse(BaseModel):
+    context: str
+    relevant_memories: List[Dict[str, Any]]
+    suggested_topics: List[str]
+    
+    class Config:
+        schema_extra = {
+            "example": {
+                "context": "Client: RALLY\n\nBrand: Ruby + Begonia\n\nRelated memory: The summer collection launch is planned for May 15th...",
+                "relevant_memories": [
+                    {
+                        "id": "3fa85f64-5717-4562-b3fc-2c963f66afa8",
+                        "title": "Summer Collection Strategy",
+                        "preview": "The summer collection launch is planned for May 15th..."
+                    }
+                ],
+                "suggested_topics": ["summer collection", "marketing strategy", "launch planning"]
+            }
+        }
 
 # Message schemas
 class MessageBase(BaseModel):
