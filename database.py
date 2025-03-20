@@ -14,6 +14,14 @@ DATABASE_URL = os.getenv(
     "postgresql+asyncpg://postgres:password@localhost:5432/atlas"
 )
 
+# Force the correct asyncpg driver format regardless of input format
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+asyncpg://", 1)
+elif DATABASE_URL.startswith("postgresql://"):
+    DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://", 1)
+
+print(f"Using database URL format: {DATABASE_URL.split('@')[0].split('://')[0]}://****@****")
+
 # Create async engine
 engine = create_async_engine(
     DATABASE_URL,
