@@ -1,13 +1,6 @@
 services:
   - type: web
-    name: atlas-api
+    name: atlas-api-test
     env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
-    envVars:
-      - key: DATABASE_URL
-        sync: false
-      - key: SECRET_KEY
-        sync: false
-      - key: OPENAI_API_KEY
-        sync: false 
+    buildCommand: pip install fastapi uvicorn
+    startCommand: uvicorn main_minimal:app --host 0.0.0.0 --port $PORT 
