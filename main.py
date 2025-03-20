@@ -15,7 +15,8 @@ from api.routers import owners, clients, memories, brands, customers, conversati
 # Uncomment these as they are implemented
 # from api.routers import strategic_plans, execution_logs, tasks
 # Add new routers
-from api.routers import memory_connections, knowledge_graph
+# Temporarily disabled for deployment
+# from api.routers import memory_connections, knowledge_graph
 # Custom GPT integration
 from api.routers import conversations, gpt_bridge
 from api.routers import chat
@@ -72,9 +73,9 @@ app.include_router(clients.router, prefix=f"{settings.API_V1_STR}/clients", tags
 app.include_router(brands.router, prefix=f"{settings.API_V1_STR}/brands", tags=["brands"])
 app.include_router(customers.router, prefix=f"{settings.API_V1_STR}/customers", tags=["customers"])
 app.include_router(memories.router, prefix=f"{settings.API_V1_STR}/memories", tags=["memories"])
-# Memory connections and knowledge graph
-app.include_router(memory_connections.router, prefix=f"{settings.API_V1_STR}/memory-connections", tags=["memory connections"])
-app.include_router(knowledge_graph.router, prefix=f"{settings.API_V1_STR}/knowledge-graph", tags=["knowledge graph"])
+# Memory connections and knowledge graph - Temporarily disabled for deployment
+# app.include_router(memory_connections.router, prefix=f"{settings.API_V1_STR}/memory-connections", tags=["memory connections"])
+# app.include_router(knowledge_graph.router, prefix=f"{settings.API_V1_STR}/knowledge-graph", tags=["knowledge graph"])
 # Custom GPT integration
 app.include_router(conversations.router, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
 app.include_router(gpt_bridge.router, prefix=f"{settings.API_V1_STR}/gpt", tags=["gpt bridge"])

@@ -124,7 +124,8 @@ class Memory(MemoryBase, BaseSchema):
     access_count: int = 0
     related_memory_ids: Optional[List[UUID4]] = None
 
-# Memory Connection Schemas
+# Memory Connection Schemas - Temporarily disabled for deployment
+"""
 class MemoryConnectionBase(BaseModel):
     source_memory_id: UUID4
     target_memory_id: UUID4
@@ -145,6 +146,7 @@ class MemoryConnection(MemoryConnectionBase):
     
     class Config:
         orm_mode = True
+"""
 
 # Add connections to the Memory response schema
 class Memory(MemoryBase):
@@ -155,19 +157,20 @@ class Memory(MemoryBase):
     client_id: UUID4
     brand_id: Optional[UUID4] = None
     customer_id: Optional[UUID4] = None
-    connections: List[MemoryConnection] = []
+    # connections temporarily removed for deployment
+    # connections: List[MemoryConnection] = []
     
     class Config:
         orm_mode = True
 
-# Memory with connected memories data
+# Memory with connected memories data - Temporarily simplified for deployment
 class MemoryWithConnections(Memory):
-    connected_memories: List["MemoryWithConnections"] = []
+    # connected_memories: List["MemoryWithConnections"] = []
     
     class Config:
         orm_mode = True
 
-# Memory Response with connection information
+# Memory Response with connection information - Temporarily simplified for deployment
 class ConnectedMemoryResponse(BaseModel):
     memory: Memory
     connected_memories: Dict[str, List[Memory]] = Field(

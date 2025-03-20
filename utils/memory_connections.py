@@ -3,7 +3,9 @@ from typing import List, Dict, Any, Optional, Tuple
 import asyncio
 from sqlalchemy.orm import Session
 
-from models import Memory, MemoryConnection
+# Temporarily disabled for deployment
+# from models import Memory, MemoryConnection
+from models import Memory
 from utils.ai import extract_key_topics, calculate_importance_score
 from utils.vector import memory_similarity_search
 
@@ -139,6 +141,8 @@ async def find_memory_connections(
     
     return suggestions
 
+# Temporarily disabled for deployment
+"""
 async def build_memory_knowledge_graph(
     client_id: str,
     db: Session,
@@ -147,20 +151,7 @@ async def build_memory_knowledge_graph(
     threshold: float = 0.6,
     auto_create: bool = False
 ) -> Dict[str, Any]:
-    """
-    Build a knowledge graph of all memories for a client.
     
-    Args:
-        client_id: UUID of the client
-        db: Database session
-        brand_id: Optional UUID of a brand to filter memories
-        limit_per_memory: Maximum connections per memory to create
-        threshold: Minimum similarity threshold
-        auto_create: If True, automatically create the connections in the database
-        
-    Returns:
-        Dictionary with nodes (memories) and edges (connections)
-    """
     # Query for all memories for this client/brand
     query = db.query(Memory).filter(Memory.client_id == client_id)
     if brand_id:
@@ -241,5 +232,55 @@ async def build_memory_knowledge_graph(
             "memory_count": len(nodes),
             "connection_count": len(edges),
             "connection_types": {ctype: edges.count({"type": ctype}) for ctype in set(edge["type"] for edge in edges)}
+        }
+    }
+"""
+
+# Simple version for deployment - only returns memory nodes, no connections
+async def build_memory_knowledge_graph(
+    client_id: str,
+    db: Session,
+    brand_id: Optional[str] = None,
+    limit_per_memory: int = 5,
+    threshold: float = 0.6,
+    auto_create: bool = False
+) -> Dict[str, Any]:
+    """
+    Build a simplified knowledge graph of all memories for a client.
+    This is a temporary version for deployment that doesn't use MemoryConnection.
+    
+    Args:
+        client_id: UUID of the client
+        db: Database session
+        brand_id: Optional UUID of a brand to filter memories
+        
+    Returns:
+        Dictionary with nodes (memories) only, no edges (connections)
+    """
+    # Query for all memories for this client/brand
+    query = db.query(Memory).filter(Memory.client_id == client_id)
+    if brand_id:
+        query = query.filter(Memory.brand_id == brand_id)
+    
+    memories = query.all()
+    
+    # Create nodes for the graph
+    nodes = [
+        {
+            "id": str(memory.id),
+            "title": memory.title,
+            "type": memory.memory_type,
+            "importance": memory.importance_score
+        }
+        for memory in memories
+    ]
+    
+    return {
+        "nodes": nodes,
+        "edges": [],
+        "stats": {
+            "memory_count": len(nodes),
+            "connection_count": 0,
+            "connection_types": {}
         }
     } 

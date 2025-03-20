@@ -1,9 +1,10 @@
-from sqlalchemy import Column, String, Text, ForeignKey, Integer, Float, Boolean, TIMESTAMP, JSON, Table
+from sqlalchemy import Column, String, Text, ForeignKey, Integer, Float, Boolean, TIMESTAMP, JSON, Table, DateTime, UniqueConstraint
 from sqlalchemy.dialects.postgresql import UUID, ARRAY, JSONB
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 import uuid
 from database import Base
+from datetime import datetime
 
 class Owner(Base):
     __tablename__ = "owners"
@@ -96,7 +97,16 @@ class Memory(Base):
     client = relationship("Client", back_populates="memories")
     customer = relationship("Customer", back_populates="memories")
     brand = relationship("Brand", back_populates="memories")
-    
+    # MemoryConnection relationships temporarily disabled for deployment
+    # outgoing_connections = relationship("MemoryConnection", 
+    #                                   foreign_keys="MemoryConnection.source_memory_id", 
+    #                                   back_populates="source_memory",
+    #                                   cascade="all, delete-orphan")
+    # incoming_connections = relationship("MemoryConnection", 
+    #                                   foreign_keys="MemoryConnection.target_memory_id", 
+    #                                   back_populates="target_memory",
+    #                                   cascade="all, delete-orphan")
+
 class Conversation(Base):
     __tablename__ = "conversations"
     
@@ -182,4 +192,27 @@ class Task(Base):
     updated_at = Column(TIMESTAMP, server_default=func.now(), onupdate=func.now())
     
     # Relationships
-    client = relationship("Client", back_populates="tasks") 
+    client = relationship("Client", back_populates="tasks")
+
+# Memory Connection Model - temporarily disabled for deployment
+"""
+class MemoryConnection(Base):
+    __tablename__ = "memory_connections"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    source_memory_id = Column(UUID(as_uuid=True), ForeignKey("memories.id", ondelete="CASCADE"), nullable=False)
+    target_memory_id = Column(UUID(as_uuid=True), ForeignKey("memories.id", ondelete="CASCADE"), nullable=False)
+    connection_type = Column(String, nullable=False)  # e.g., "related", "prerequisite", "followup", "contradicts"
+    connection_strength = Column(Float, default=1.0)  # 0.0 to 1.0
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    source_memory = relationship("Memory", foreign_keys=[source_memory_id], back_populates="outgoing_connections")
+    target_memory = relationship("Memory", foreign_keys=[target_memory_id], back_populates="incoming_connections")
+    
+    __table_args__ = (
+        UniqueConstraint('source_memory_id', 'target_memory_id', 'connection_type', 
+                         name='unique_memory_connection'),
+    )
+""" 
