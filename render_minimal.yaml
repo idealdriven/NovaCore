@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: atlas-api-test
+    env: python
+    buildCommand: pip install fastapi uvicorn
+    startCommand: uvicorn main_minimal:app --host 0.0.0.0 --port $PORT 
