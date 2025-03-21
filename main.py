@@ -1,132 +1,151 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse
 import logging
 import os
-import sys
 from contextlib import asynccontextmanager
+import json
+from datetime import timedelta
 
+from api.config import settings
+from api.routers import api_router
 from database import initialize_db
+
+# Import routers individually to avoid circular imports
+from api.routers import owners, clients, memories, brands, customers, conversations, strategic_plans, execution_logs, tasks
+# Uncomment these as they are implemented
+# from api.routers import memory_connections, knowledge_graph
+# Custom GPT integration
+from api.routers import conversations, gpt_bridge
+from api.routers import chat
+
+# For direct auth
+from fastapi.security import OAuth2PasswordRequestForm
+from auth.jwt import create_access_token, ACCESS_TOKEN_EXPIRE_MINUTES
 
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+    handlers=[
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
+    ]
 )
 logger = logging.getLogger(__name__)
-
-# Global flag to track if database initialization succeeded
-db_initialized = False
 
 # Startup and shutdown events
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    global db_initialized
     # Startup: Initialize database
     try:
-        print("DEPLOYMENT: Application startup beginning")
         await initialize_db()
-        db_initialized = True
-        logger.info("DEPLOYMENT: Application startup complete - database initialized")
+        logger.info("Application startup complete")
     except Exception as e:
-        logger.error(f"DEPLOYMENT ERROR during startup: {str(e)}")
-        import traceback
-        logger.error(traceback.format_exc())
-        # We'll continue even if database initialization fails
-        # This allows the app to start in a degraded state
-        print("⚠️ DEPLOYMENT: Application starting in degraded state - database not available", file=sys.stderr)
+        logger.error(f"Error during startup: {str(e)}")
+        raise e
     
     yield
     
     # Shutdown: Close connections
-    logger.info("DEPLOYMENT: Application shutdown")
+    logger.info("Application shutdown")
 
 # Create FastAPI application
 app = FastAPI(
-    title="Atlas API",
-    description="API for the Atlas memory system",
+    title="Atlas Memory API",
+    description="API for the Atlas AI memory system",
     version="0.1.0",
     lifespan=lifespan,
 )
 
 # Set up CORS
+origins = [
+    "*",
+    "http://localhost",
+    "http://localhost:8000",
+    "http://localhost:3000",
+    "https://atlas-api-4t8d.onrender.com",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, replace with specific origins
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Mount static files if the directory exists
-static_dir = "static"
-if os.path.isdir(static_dir):
-    app.mount("/static", StaticFiles(directory=static_dir), name="static")
-    print(f"DEPLOYMENT: Static files mounted from {static_dir}")
-else:
-    print(f"DEPLOYMENT WARNING: Static directory {static_dir} not found")
+# Mount static files
+app.mount("/static", StaticFiles(directory="static"), name="static")
 
-# Minimal API endpoints for initial deployment
-@app.get("/")
-async def read_root():
-    return {"message": "Welcome to Atlas API"}
+# Include API router
+app.include_router(api_router, prefix=settings.API_V1_STR)
 
-@app.get("/health")
-async def health_check():
-    if db_initialized:
-        return {"status": "ok", "database": "connected"}
+# Include routers individually
+app.include_router(owners.router, prefix=f"{settings.API_V1_STR}/owners", tags=["owners"])
+app.include_router(clients.router, prefix=f"{settings.API_V1_STR}/clients", tags=["clients"])
+app.include_router(brands.router, prefix=f"{settings.API_V1_STR}/brands", tags=["brands"])
+app.include_router(customers.router, prefix=f"{settings.API_V1_STR}/customers", tags=["customers"])
+app.include_router(memories.router, prefix=f"{settings.API_V1_STR}/memories", tags=["memories"])
+# Memory connections and knowledge graph - Temporarily disabled for deployment
+# app.include_router(memory_connections.router, prefix=f"{settings.API_V1_STR}/memory-connections", tags=["memory connections"])
+# app.include_router(knowledge_graph.router, prefix=f"{settings.API_V1_STR}/knowledge-graph", tags=["knowledge graph"])
+# Custom GPT integration
+app.include_router(conversations.router, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
+app.include_router(gpt_bridge.router, prefix=f"{settings.API_V1_STR}/gpt", tags=["gpt bridge"])
+app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
+# Uncomment these as they are implemented
+app.include_router(strategic_plans.router, prefix=f"{settings.API_V1_STR}/strategic_plans", tags=["strategic_plans"])
+app.include_router(execution_logs.router, prefix=f"{settings.API_V1_STR}/execution_logs", tags=["execution_logs"])
+app.include_router(tasks.router, prefix=f"{settings.API_V1_STR}/tasks", tags=["tasks"])
+
+# Add a direct login endpoint for testing
+@app.post(f"{settings.API_V1_STR}/direct-login")
+async def direct_login(form_data: OAuth2PasswordRequestForm = Depends()):
+    # Hard-coded test credentials
+    if form_data.username == "admin@atlas.com" and form_data.password == "Atlas123!":
+        # Create access token with long expiry for testing
+        access_token_expires = timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES * 10)  # 10x normal duration
+        access_token = create_access_token(
+            data={"sub": "admin@atlas.com", "name": "Atlas Admin"},
+            expires_delta=access_token_expires
+        )
+        
+        logger.info(f"Direct login successful for {form_data.username}")
+        
+        return {
+            "access_token": access_token,
+            "token_type": "bearer",
+            "owner": {
+                "id": "00000000-0000-0000-0000-000000000000",  # Placeholder ID
+                "name": "Atlas Admin",
+                "email": "admin@atlas.com"
+            }
+        }
     else:
-        return JSONResponse(
-            status_code=500,
-            content={"status": "degraded", "database": "not connected"}
+        logger.warning(f"Failed direct login attempt for {form_data.username}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect email or password",
+            headers={"WWW-Authenticate": "Bearer"},
         )
 
-# Only include routers if database is available
-# This pattern allows the app to start even if DB is not available
-@app.on_event("startup")
-async def include_routers():
-    global db_initialized
-    
-    if not db_initialized:
-        print("DEPLOYMENT WARNING: Database not initialized, skipping router inclusion")
-        return
-        
-    try:
-        # Import API router
-        print("DEPLOYMENT: Importing API routers")
-        from api.config import settings
-        from api.routers import api_router
-        
-        # Include API router
-        app.include_router(api_router, prefix=settings.API_V1_STR)
-        
-        # Import routers individually to avoid circular imports
-        from api.routers import owners, clients, memories, brands, customers, conversations
-        from api.routers import chat
-        
-        # Include routers individually
-        print("DEPLOYMENT: Including API routers")
-        app.include_router(owners.router, prefix=f"{settings.API_V1_STR}/owners", tags=["owners"])
-        app.include_router(clients.router, prefix=f"{settings.API_V1_STR}/clients", tags=["clients"])
-        app.include_router(brands.router, prefix=f"{settings.API_V1_STR}/brands", tags=["brands"])
-        app.include_router(customers.router, prefix=f"{settings.API_V1_STR}/customers", tags=["customers"])
-        app.include_router(memories.router, prefix=f"{settings.API_V1_STR}/memories", tags=["memories"])
-        app.include_router(conversations.router, prefix=f"{settings.API_V1_STR}/conversations", tags=["conversations"])
-        app.include_router(chat.router, prefix=f"{settings.API_V1_STR}/chat", tags=["chat"])
-        
-        print("DEPLOYMENT: All routers included successfully")
-    except Exception as e:
-        db_initialized = False
-        print(f"DEPLOYMENT ERROR including routers: {str(e)}", file=sys.stderr)
-        import traceback
-        print(traceback.format_exc(), file=sys.stderr)
+# Root path
+@app.get("/")
+async def read_root():
+    return FileResponse("index.html")
+
+# Health check
+@app.get("/health")
+async def health_check():
+    return {"status": "ok"}
 
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(
         "main:app",
         host="0.0.0.0",
-        port=int(os.environ.get("PORT", 8000)),
+        port=int(os.getenv("PORT", "8000")),
         reload=True,
     )
