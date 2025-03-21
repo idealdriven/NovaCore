@@ -1,9 +1,17 @@
-from pydantic import BaseModel, Field, UUID4
-from pydantic import field_validator as validator
-from pydantic.networks import EmailStr
+import sys
 from typing import Optional, List, Dict, Any, Union
 from datetime import datetime
 import uuid
+
+# Pydantic compatibility layer
+try:
+    # Try pydantic v2 first
+    from pydantic import field_validator as validator
+except ImportError:
+    # Fall back to pydantic v1
+    from pydantic import validator
+
+from pydantic import BaseModel, Field, UUID4, EmailStr
 
 # Base schemas with common fields
 class BaseSchema(BaseModel):
