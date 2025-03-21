@@ -1,6 +1,17 @@
 import os
-from pydantic_settings import BaseSettings
+import sys
 from functools import lru_cache
+
+# Try pydantic v2 import first, fall back to pydantic v1
+try:
+    from pydantic_settings import BaseSettings
+except ImportError:
+    try:
+        from pydantic import BaseSettings
+    except ImportError:
+        print("Error: Neither pydantic_settings nor pydantic.BaseSettings could be imported")
+        print("Install required packages with: pip install pydantic==1.10.8 or pydantic-settings")
+        sys.exit(1)
 
 class Settings(BaseSettings):
     """
