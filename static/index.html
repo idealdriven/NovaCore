@@ -325,16 +325,15 @@
             }
             
             try {
-                // Authenticate with email and password
-                const response = await fetch(`${API_BASE_URL}/owners/login`, {
+                // Authenticate with email and password using the token endpoint
+                // OAuth2 requires form data with 'username' field (even for email)
+                const formData = new FormData();
+                formData.append('username', email);
+                formData.append('password', password);
+                
+                const response = await fetch(`${API_BASE_URL}/owners/token`, {
                     method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        email: email,
-                        password: password
-                    })
+                    body: formData
                 });
                 
                 if (!response.ok) {
@@ -343,7 +342,20 @@
                 
                 const data = await response.json();
                 accessToken = data.access_token;
-                clientId = data.owner.id;
+                
+                // Get owner info
+                const ownerResponse = await fetch(`${API_BASE_URL}/owners/me`, {
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                });
+                
+                if (!ownerResponse.ok) {
+                    throw new Error('Failed to get owner information');
+                }
+                
+                const ownerData = await ownerResponse.json();
+                clientId = ownerData.id;
                 
                 // Store data
                 localStorage.setItem('atlas_access_token', accessToken);
@@ -364,7 +376,7 @@
                 await loadBrands();
                 
                 // Add welcome message
-                const welcomeMessage = `Welcome ${data.owner.name}! I'm Atlas, your memory system. What would you like to discuss today?`;
+                const welcomeMessage = `Welcome ${ownerData.name}! I'm Atlas, your memory system. What would you like to discuss today?`;
                 addMessage(welcomeMessage, 'system');
             } catch (error) {
                 console.error('Login error:', error);
@@ -658,4 +670,4 @@
         window.addEventListener('DOMContentLoaded', init);
     </script>
 </body>
-</html> </html> 
+</html> 
