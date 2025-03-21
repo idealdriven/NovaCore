@@ -11,3 +11,4 @@ python-dotenv==1.0.0
 email_validator==2.0.0
 numpy==1.24.3
 psycopg2-binary==2.9.6
+PyJWT==2.10.1
